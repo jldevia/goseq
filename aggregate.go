@@ -36,8 +36,13 @@ package goseq
 //	) // []int{2, 4}
 func Reduce[T any, U any](s Seq[T], initial U, fn func(U, T) U) U {
 	acc := initial
-	for _, item := range s.items {
-		acc = fn(acc, item)
+	next := s.iterate()
+	for {
+		val, ok := next()
+		if !ok {
+			break
+		}
+		acc = fn(acc, val)
 	}
 	return acc
 }

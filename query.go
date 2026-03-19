@@ -1,96 +1,94 @@
 package goseq
 
 // First returns the first element of the sequence and true.
-// If the sequence is empty, it returns the zero value of T and false.
+// Returns the zero value and false if the sequence is empty.
+// This is a terminal operation.
 //
 // Example:
 //
 //	val, ok := goseq.From([]int{1, 2, 3}).First()
 //	// val=1, ok=true
-//
-//	val, ok := goseq.Empty[int]().First()
-//	// val=0, ok=false
 func (s Seq[T]) First() (T, bool) {
-	if len(s.items) == 0 {
-		var zero T
-		return zero, false
-	}
-	return s.items[0], true
+	next := s.iterate()
+	return next()
 }
 
-// FirstWhere returns the first element that satisfies the predicate and true.
-// If no element matches, it returns the zero value of T and false.
+// FirstWhere returns the first element satisfying the predicate and true.
+// Returns the zero value and false if no element matches.
+// This is a terminal operation.
 //
 // Example:
 //
-//	val, ok := goseq.From([]int{1, 2, 3, 4}).FirstWhere(func(n int) bool { return n%2 == 0 })
+//	val, ok := goseq.From([]int{1, 2, 3, 4}).
+//	    FirstWhere(func(n int) bool { return n%2 == 0 })
 //	// val=2, ok=true
 func (s Seq[T]) FirstWhere(predicate func(T) bool) (T, bool) {
-	for _, item := range s.items {
-		if predicate(item) {
-			return item, true
-		}
-	}
-	var zero T
-	return zero, false
+	return s.Filter(predicate).First()
 }
 
 // Last returns the last element of the sequence and true.
-// If the sequence is empty, it returns the zero value of T and false.
+// Returns the zero value and false if the sequence is empty.
+// This is a terminal operation.
 //
 // Example:
 //
 //	val, ok := goseq.From([]int{1, 2, 3}).Last()
 //	// val=3, ok=true
 func (s Seq[T]) Last() (T, bool) {
-	if len(s.items) == 0 {
-		var zero T
-		return zero, false
+	var last T
+	found := false
+	next := s.iterate()
+	for {
+		val, ok := next()
+		if !ok {
+			break
+		}
+		last = val
+		found = true
 	}
-	return s.items[len(s.items)-1], true
+	return last, found
 }
 
-// LastWhere returns the last element that satisfies the predicate and true.
-// If no element matches, it returns the zero value of T and false.
+// LastWhere returns the last element satisfying the predicate and true.
+// Returns the zero value and false if no element matches.
+// This is a terminal operation.
 //
 // Example:
 //
-//	val, ok := goseq.From([]int{1, 2, 3, 4}).LastWhere(func(n int) bool { return n%2 == 0 })
+//	val, ok := goseq.From([]int{1, 2, 3, 4}).
+//	    LastWhere(func(n int) bool { return n%2 == 0 })
 //	// val=4, ok=true
 func (s Seq[T]) LastWhere(predicate func(T) bool) (T, bool) {
-	for i := len(s.items) - 1; i >= 0; i-- {
-		if predicate(s.items[i]) {
-			return s.items[i], true
-		}
-	}
-	var zero T
-	return zero, false
+	return s.Filter(predicate).Last()
 }
 
 // Any returns true if at least one element satisfies the predicate.
 // Returns false for empty sequences.
+// This is a terminal operation that short-circuits on the first match.
 //
 // Example:
 //
 //	goseq.From([]int{1, 2, 3}).Any(func(n int) bool { return n > 2 }) // true
 func (s Seq[T]) Any(predicate func(T) bool) bool {
-	for _, item := range s.items {
-		if predicate(item) {
-			return true
-		}
-	}
-	return false
+	_, ok := s.FirstWhere(predicate)
+	return ok
 }
 
 // All returns true if every element satisfies the predicate.
 // Returns true for empty sequences (vacuous truth).
+// This is a terminal operation that short-circuits on the first non-match.
 //
 // Example:
 //
 //	goseq.From([]int{2, 4, 6}).All(func(n int) bool { return n%2 == 0 }) // true
 func (s Seq[T]) All(predicate func(T) bool) bool {
-	for _, item := range s.items {
-		if !predicate(item) {
+	next := s.iterate()
+	for {
+		val, ok := next()
+		if !ok {
+			break
+		}
+		if !predicate(val) {
 			return false
 		}
 	}
@@ -99,6 +97,7 @@ func (s Seq[T]) All(predicate func(T) bool) bool {
 
 // None returns true if no element satisfies the predicate.
 // Returns true for empty sequences.
+// This is a terminal operation.
 //
 // Example:
 //
@@ -108,32 +107,22 @@ func (s Seq[T]) None(predicate func(T) bool) bool {
 }
 
 // Count returns the number of elements that satisfy the predicate.
+// This is a terminal operation.
 //
 // Example:
 //
-//	goseq.From([]int{1, 2, 3, 4, 5}).Count(func(n int) bool { return n%2 == 0 }) // 2
+//	goseq.From([]int{1, 2, 3, 4}).Count(func(n int) bool { return n%2 == 0 }) // 2
 func (s Seq[T]) Count(predicate func(T) bool) int {
-	count := 0
-	for _, item := range s.items {
-		if predicate(item) {
-			count++
-		}
-	}
-	return count
+	return s.Filter(predicate).Len()
 }
 
 // Contains returns true if the sequence contains the given value.
 // The type T must be comparable.
+// This is a terminal operation that short-circuits on the first match.
 //
 // Example:
 //
-//	goseq.From([]int{1, 2, 3}).Contains(2) // true
-//	goseq.From([]int{1, 2, 3}).Contains(9) // false
+//	goseq.Contains(goseq.From([]int{1, 2, 3}), 2) // true
 func Contains[T comparable](s Seq[T], value T) bool {
-	for _, item := range s.items {
-		if item == value {
-			return true
-		}
-	}
-	return false
+	return s.Any(func(item T) bool { return item == value })
 }

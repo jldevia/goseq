@@ -30,13 +30,13 @@ result := goseq.From(numbers).
 ## Installation
 
 ```bash
-go get github.com/your-username/goseq
+go get github.com/jldevia/goseq
 ```
 
 ## Quick Example
 
 ```go
-import "github.com/your-username/goseq"
+import "github.com/jldevia/goseq"
 
 names := []string{"Alice", "Bob", "Charlie", "Ana", "Brian"}
 
@@ -99,7 +99,7 @@ Refactor the internal architecture to support lazy (deferred) evaluation, where 
 
 ## Project Status
 
-Currently in active early development. The API may change between minor versions until v1.0.
+Candidate for v1.0 - lazy evaluation with iterator factory pattern
 
 ## Contributing
 
